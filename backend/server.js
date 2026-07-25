@@ -27,6 +27,10 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", require("./src/routes/authRoutes"));
 app.use("/api/properties", require("./src/routes/propertyRoutes"));
+app.use("/api/admin", require("./src/routes/adminRoutes"));
+app.use("/api/favorites", require("./src/routes/favoriteRoutes"));
+app.use("/api/contact", require("./src/routes/contactRoutes"));
+app.use("/api/upload", require("./src/routes/uploadRoutes"));
 
 app.use(errorMiddleware);
 
