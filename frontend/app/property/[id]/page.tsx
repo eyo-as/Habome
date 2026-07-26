@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { MapPin, Bed, Bath, Square, ArrowLeft, Heart, Share2 } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/helpers'
 import { ROUTES } from '@/lib/constants'
+import { ContactOwnerModal } from '@/components/contact-owner-modal'
 import type { Property } from '@/lib/types'
 
 // Mock property data - replace with actual API call
@@ -32,8 +33,7 @@ const MOCK_PROPERTY: Property = {
     email: 'owner@example.com',
     name: 'John Smith',
     role: 'owner',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: new Date()
   },
   createdAt: new Date('2024-01-15'),
   updatedAt: new Date('2024-01-15'),
@@ -43,6 +43,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [property] = useState<Property>(MOCK_PROPERTY)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [isFavorited, setIsFavorited] = useState(false)
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false)
 
   const handleFavoriteToggle = () => {
     setIsFavorited(!isFavorited)
@@ -179,7 +180,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 <p className="text-4xl font-bold text-primary">{formatPrice(property.price)}</p>
               </div>
 
-              <button className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors">
+              <button
+                onClick={() => setIsContactModalOpen(true)}
+                className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
+              >
                 Contact Owner
               </button>
 
@@ -216,6 +220,16 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
           </div>
         </div>
       </div>
+
+      {/* Contact Owner Modal */}
+      {property.owner && (
+        <ContactOwnerModal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          owner={property.owner}
+          propertyTitle={property.title}
+        />
+      )}
     </div>
   )
 }
