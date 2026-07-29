@@ -34,11 +34,11 @@ app.use("/api/upload", require("./src/routes/uploadRoutes"));
 
 app.use(errorMiddleware);
 
-const PORT = process.env.PORT || 5000;
+const DEFAULT_PORT = Number(process.env.PORT || 5000);
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Habome server running on port ${PORT}`);
+  app.listen(DEFAULT_PORT, () => {
+    console.log(`Habome server running on port ${DEFAULT_PORT}`);
   });
 }
 
