@@ -76,7 +76,9 @@ export const contactAPI = {
 export const uploadAPI = {
   uploadImages: (formData: FormData) =>
     api.post("/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     }),
 };
 
