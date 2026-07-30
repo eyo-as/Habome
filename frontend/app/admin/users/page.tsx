@@ -1,60 +1,96 @@
-'use client'
+"use client";
 
-import { useState, useMemo } from 'react'
-import Link from 'next/link'
-import { Shield, Trash2, Mail, Calendar } from 'lucide-react'
-import { DashboardSidebar } from '@/components/dashboard-sidebar'
-import { Pagination } from '@/components/pagination'
-import { ROLE_LABELS, PAGINATION } from '@/lib/constants'
-import { formatDate } from '@/lib/helpers'
-import { useProtectedRoute } from '@/hooks/use-protected-route'
-import { useToast } from '@/context/toast-context'
-import type { User } from '@/lib/types'
-
-const MOCK_USERS: User[] = [
-  { id: '1', name: 'John Smith', email: 'john.smith@example.com', role: 'owner', createdAt: '2024-01-15' },
-  { id: '2', name: 'Sarah Johnson', email: 'sarah.j@example.com', role: 'user', createdAt: '2024-01-18' },
-  { id: '3', name: 'Michael Brown', email: 'michael.b@example.com', role: 'owner', createdAt: '2024-02-01' },
-  { id: '4', name: 'Emily Davis', email: 'emily.davis@example.com', role: 'user', createdAt: '2024-02-05' },
-  { id: '5', name: 'James Wilson', email: 'james.w@example.com', role: 'owner', createdAt: '2024-02-10' },
-  { id: '6', name: 'Jessica Martinez', email: 'jessica.m@example.com', role: 'user', createdAt: '2024-02-15' },
-  { id: '7', name: 'Robert Garcia', email: 'robert.g@example.com', role: 'owner', createdAt: '2024-02-20' },
-  { id: '8', name: 'Linda Rodriguez', email: 'linda.r@example.com', role: 'user', createdAt: '2024-02-25' },
-  { id: '9', name: 'David Lee', email: 'david.lee@example.com', role: 'owner', createdAt: '2024-03-01' },
-  { id: '10', name: 'Maria Anderson', email: 'maria.a@example.com', role: 'user', createdAt: '2024-03-05' },
-  { id: '11', name: 'Thomas Taylor', email: 'thomas.t@example.com', role: 'owner', createdAt: '2024-03-10' },
-  { id: '12', name: 'Jennifer Thomas', email: 'jennifer.t@example.com', role: 'user', createdAt: '2024-03-15' },
-]
+import { useEffect, useMemo, useState } from "react";
+import { Shield, Trash2, Mail } from "lucide-react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { Pagination } from "@/components/pagination";
+import { ROLE_LABELS, PAGINATION } from "@/lib/constants";
+import { formatDate } from "@/lib/helpers";
+import { useProtectedRoute } from "@/hooks/use-protected-route";
+import { useToast } from "@/context/toast-context";
+import { adminAPI } from "@/services/api";
+import type { User } from "@/lib/types";
 
 export default function AdminUsersPage() {
-  const { isLoading } = useProtectedRoute('admin')
-  const { addToast } = useToast()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'user'>('all')
+  const { isLoading } = useProtectedRoute("admin");
+  const { addToast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "owner" | "user">("all");
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUsers = async () => {
+      try {
+        setIsLoadingData(true);
+        const response = await adminAPI.getAllUsers({ page: 1, limit: 100 });
+
+        if (isMounted) {
+          const items = (response.data?.data?.users ?? []) as Array<
+            Record<string, unknown>
+          >;
+          setUsers(
+            items.map((user) => ({
+              id: String(user._id || user.id || ""),
+              name: typeof user.name === "string" ? user.name : "",
+              email: typeof user.email === "string" ? user.email : "",
+              role: (user.role as User["role"]) || "user",
+              createdAt: user.createdAt
+                ? new Date(String(user.createdAt))
+                : new Date(),
+            })),
+          );
+          setError(null);
+        }
+      } catch {
+        if (isMounted) {
+          setError("We could not load users right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingData(false);
+        }
+      }
+    };
+
+    loadUsers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredUsers = useMemo(() => {
-    return MOCK_USERS.filter((user) => {
+    return users.filter((user) => {
       const matchesSearch =
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRole = roleFilter === 'all' || user.role === roleFilter
-      return matchesSearch && matchesRole
-    })
-  }, [searchTerm, roleFilter])
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [searchTerm, roleFilter, users]);
 
-  const totalPages = Math.ceil(filteredUsers.length / PAGINATION.ADMIN_USERS_LIMIT)
+  const totalPages = Math.ceil(
+    filteredUsers.length / PAGINATION.ADMIN_USERS_LIMIT,
+  );
   const paginatedUsers = useMemo(() => {
-    const startIdx = (currentPage - 1) * PAGINATION.ADMIN_USERS_LIMIT
-    return filteredUsers.slice(startIdx, startIdx + PAGINATION.ADMIN_USERS_LIMIT)
-  }, [currentPage, filteredUsers])
+    const startIdx = (currentPage - 1) * PAGINATION.ADMIN_USERS_LIMIT;
+    return filteredUsers.slice(
+      startIdx,
+      startIdx + PAGINATION.ADMIN_USERS_LIMIT,
+    );
+  }, [currentPage, filteredUsers]);
 
   const handleDeleteUser = (id: string) => {
-    console.log('Delete user:', id)
-    addToast('User deleted successfully', 'success')
-  }
+    console.log("Delete user:", id);
+    addToast("User deleted successfully", "success");
+  };
 
-  if (isLoading) {
+  if (isLoading || isLoadingData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -62,7 +98,7 @@ export default function AdminUsersPage() {
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -72,29 +108,34 @@ export default function AdminUsersPage() {
       <main className="flex-1 mt-16 md:mt-0 px-4 md:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">User Management</h1>
-          <p className="text-muted-foreground">Manage all users on the platform</p>
+          <p className="text-muted-foreground">
+            Manage all users on the platform
+          </p>
         </div>
 
-        {/* Filters */}
+        {error ? (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400">
+            {error}
+          </div>
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-2 mb-6">
-          {/* Search */}
           <input
             type="text"
             placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setCurrentPage(1)
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
             }}
             className="px-4 py-2 rounded-lg border border-border bg-black text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
 
-          {/* Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => {
-              setRoleFilter(e.target.value as typeof roleFilter)
-              setCurrentPage(1)
+              setRoleFilter(e.target.value as typeof roleFilter);
+              setCurrentPage(1);
             }}
             className="px-4 py-2 rounded-lg border border-border bg-black text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           >
@@ -104,11 +145,9 @@ export default function AdminUsersPage() {
           </select>
         </div>
 
-        {/* Users Table */}
         {paginatedUsers.length > 0 ? (
           <div className="overflow-x-auto">
             <div className="bg-black border border-border rounded-lg overflow-hidden">
-              {/* Table Header */}
               <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-black/50 font-semibold text-sm">
                 <div className="col-span-4">Name</div>
                 <div className="col-span-4">Email</div>
@@ -116,10 +155,12 @@ export default function AdminUsersPage() {
                 <div className="col-span-2">Actions</div>
               </div>
 
-              {/* Table Body */}
               <div className="divide-y divide-border">
                 {paginatedUsers.map((user) => (
-                  <div key={user.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-black/50 transition-colors text-sm">
+                  <div
+                    key={user.id}
+                    className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-black/50 transition-colors text-sm"
+                  >
                     <div className="col-span-4 font-medium">{user.name}</div>
                     <div className="col-span-4 text-muted-foreground flex items-center gap-2">
                       <Mail size={16} />
@@ -146,12 +187,14 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <div className="bg-black border border-border rounded-lg p-8 text-center">
-            <Shield size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+            <Shield
+              size={48}
+              className="mx-auto mb-4 text-muted-foreground opacity-50"
+            />
             <p className="text-muted-foreground">No users found</p>
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-8">
             <Pagination
@@ -165,5 +208,5 @@ export default function AdminUsersPage() {
         )}
       </main>
     </div>
-  )
+  );
 }

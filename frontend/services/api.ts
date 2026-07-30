@@ -63,6 +63,8 @@ export const favoriteAPI = {
 export const adminAPI = {
   getAllProperties: (params?: Record<string, number>) =>
     api.get("/admin/properties", { params }),
+  getAllUsers: (params?: Record<string, number>) =>
+    api.get("/admin/users", { params }),
   disableProperty: (id: string) => api.patch(`/admin/properties/${id}/disable`),
   getMetrics: () => api.get("/admin/metrics"),
 };

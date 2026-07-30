@@ -1,50 +1,36 @@
-const Property = require("../models/Property");
-const User = require("../models/User");
-const { createError } = require("../middleware/errorMiddleware");
+const adminService = require("../services/adminService");
 
 const getAllProperties = async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
-  const skip = (Number(page) - 1) * Number(limit);
-
-  const total = await Property.countDocuments({});
-  const properties = await Property.find({})
-    .populate("ownerId", "name email")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(Number(limit));
+  const result = await adminService.getAllProperties(req.query);
 
   res.status(200).json({
     success: true,
-    data: {
-      properties,
-      total,
-      page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
-    },
+    data: result,
+  });
+};
+
+const getAllUsers = async (req, res) => {
+  const result = await adminService.getAllUsers(req.query);
+
+  res.status(200).json({
+    success: true,
+    data: result,
   });
 };
 
 const disableProperty = async (req, res) => {
-  const property = await Property.findById(req.params.id);
-  if (!property) throw createError("Property not found", 404);
-
-  property.status = "disabled";
-  await property.save();
+  const property = await adminService.disableProperty(req.params.id);
 
   res.status(200).json({ success: true, data: { property } });
 };
 
 const getMetrics = async (req, res) => {
-  const [totalUsers, totalProperties, publishedProperties] = await Promise.all([
-    User.countDocuments({ deletedAt: null }),
-    Property.countDocuments({}),
-    Property.countDocuments({ status: "published" }),
-  ]);
+  const metrics = await adminService.getMetrics();
 
   res.status(200).json({
     success: true,
-    data: { totalUsers, totalProperties, publishedProperties },
+    data: metrics,
   });
 };
 
-module.exports = { getAllProperties, disableProperty, getMetrics };
+module.exports = { getAllProperties, getAllUsers, disableProperty, getMetrics };

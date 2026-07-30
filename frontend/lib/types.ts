@@ -6,7 +6,7 @@ export interface User {
   email: string;
   name?: string;
   role: UserRole;
-  createdAt?: Date;
+  createdAt?: Date | string;
 }
 
 // Property types
