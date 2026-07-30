@@ -9,6 +9,7 @@ import {
   Archive,
   PlusSquare,
   AlertCircle,
+  Rocket,
 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { StatusBadge } from "@/components/status-badge";
@@ -16,43 +17,45 @@ import { Pagination } from "@/components/pagination";
 import { formatPrice, formatDate } from "@/lib/helpers";
 import { ROUTES, PAGINATION } from "@/lib/constants";
 import { useProtectedRoute } from "@/hooks/use-protected-route";
+import { useToast } from "@/context/toast-context";
 import { propertyAPI } from "@/services/api";
 import { normalizeProperty } from "@/lib/property-utils";
 import type { Property } from "@/lib/types";
 
 export default function OwnerPropertiesPage() {
   const { isLoading } = useProtectedRoute("owner");
+  const { addToast } = useToast();
   const [properties, setProperties] = useState<Property[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loadProperties = async () => {
+    try {
+      setIsLoadingData(true);
+      const response = await propertyAPI.getMyListings();
+      const items = (response.data?.data?.properties ?? []) as Array<
+        Record<string, unknown>
+      >;
+      setProperties(items.map(normalizeProperty));
+      setError(null);
+    } catch {
+      setError("We could not load your properties right now.");
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadProperties = async () => {
-      try {
-        setIsLoadingData(true);
-        const response = await propertyAPI.getMyListings();
-        if (isMounted) {
-          const items = (response.data?.data?.properties ?? []) as Array<
-            Record<string, unknown>
-          >;
-          setProperties(items.map(normalizeProperty));
-          setError(null);
-        }
-      } catch {
-        if (isMounted) {
-          setError("We could not load your properties right now.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingData(false);
-        }
-      }
+    const fetchProperties = async () => {
+      if (!isMounted) return;
+      await loadProperties();
     };
 
-    loadProperties();
+    fetchProperties();
 
     return () => {
       isMounted = false;
@@ -70,12 +73,53 @@ export default function OwnerPropertiesPage() {
     );
   }, [currentPage, properties]);
 
-  const handleDelete = (id: string) => {
-    console.log("Delete property:", id);
+  const handlePublish = async (id: string) => {
+    if (isUpdatingId) return;
+
+    setIsUpdatingId(id);
+    try {
+      await propertyAPI.publish(id);
+      addToast("Property published successfully.", "success");
+      await loadProperties();
+    } catch {
+      addToast("We could not publish this property.", "error");
+    } finally {
+      setIsUpdatingId(null);
+    }
   };
 
-  const handleArchive = (id: string) => {
-    console.log("Archive property:", id);
+  const handleArchive = async (id: string) => {
+    if (isUpdatingId) return;
+
+    setIsUpdatingId(id);
+    try {
+      await propertyAPI.archive(id);
+      addToast("Property archived successfully.", "success");
+      await loadProperties();
+    } catch {
+      addToast("We could not archive this property.", "error");
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this property?")) {
+      return;
+    }
+
+    if (isUpdatingId) return;
+
+    setIsUpdatingId(id);
+    try {
+      await propertyAPI.delete(id);
+      addToast("Property deleted successfully.", "success");
+      await loadProperties();
+    } catch {
+      addToast("We could not delete this property.", "error");
+    } finally {
+      setIsUpdatingId(null);
+    }
   };
 
   if (isLoading || isLoadingData) {
@@ -190,10 +234,24 @@ export default function OwnerPropertiesPage() {
                             >
                               <Edit2 size={18} />
                             </Link>
+                            {property.status === "draft" ? (
+                              <button
+                                onClick={() => handlePublish(property.id)}
+                                className="p-2 hover:bg-green-50 dark:hover:bg-green-950/30 rounded-lg transition-colors text-muted-foreground hover:text-green-600"
+                                title="Publish"
+                                disabled={isUpdatingId === property.id}
+                              >
+                                <Rocket size={18} />
+                              </button>
+                            ) : null}
                             <button
                               onClick={() => handleArchive(property.id)}
                               className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
                               title="Archive"
+                              disabled={
+                                isUpdatingId === property.id ||
+                                property.status === "archived"
+                              }
                             >
                               <Archive size={18} />
                             </button>
@@ -201,6 +259,7 @@ export default function OwnerPropertiesPage() {
                               onClick={() => handleDelete(property.id)}
                               className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors text-muted-foreground hover:text-red-600"
                               title="Delete"
+                              disabled={isUpdatingId === property.id}
                             >
                               <Trash2 size={18} />
                             </button>
@@ -260,15 +319,29 @@ export default function OwnerPropertiesPage() {
                         >
                           <Edit2 size={16} />
                         </Link>
+                        {property.status === "draft" ? (
+                          <button
+                            onClick={() => handlePublish(property.id)}
+                            className="p-1.5 hover:bg-green-50 dark:hover:bg-green-950/30 rounded transition-colors text-green-600"
+                            disabled={isUpdatingId === property.id}
+                          >
+                            <Rocket size={16} />
+                          </button>
+                        ) : null}
                         <button
                           onClick={() => handleArchive(property.id)}
                           className="p-1.5 hover:bg-muted rounded transition-colors"
+                          disabled={
+                            isUpdatingId === property.id ||
+                            property.status === "archived"
+                          }
                         >
                           <Archive size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(property.id)}
                           className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors text-red-600"
+                          disabled={isUpdatingId === property.id}
                         >
                           <Trash2 size={16} />
                         </button>
