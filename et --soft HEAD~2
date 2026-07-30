@@ -1,0 +1,17 @@
+[33mcommit bc09e97876edfd28ee103a96eb32eb664f7f5b4a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: eyo-as <eyosiyastumiso7@gmail.com>
+Date:   Thu Jul 30 20:12:46 2026 +0300
+
+    adding ip address which allow from anywhere
+
+[33mcommit f73f5a20eb69bb54214451a11a20ad8426d2b438[m
+Author: eyo-as <eyosiyastumiso7@gmail.com>
+Date:   Thu Jul 30 19:59:15 2026 +0300
+
+    update landing page fething error
+
+[33mcommit df8382233a59b4f5373aaae0ce313d91fc4562ee[m
+Author: eyo-as <eyosiyastumiso7@gmail.com>
+Date:   Thu Jul 30 18:06:57 2026 +0300
+
+    use force-dynamic
