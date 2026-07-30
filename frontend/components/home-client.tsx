@@ -1,55 +1,114 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import { SearchFilterBar } from "@/components/search-filter-bar"
-import { PropertyCard } from "@/components/property-card"
-import { EmptyState } from "@/components/empty-state"
-import { Pagination } from "@/components/pagination"
-import { filterProperties, sortProperties } from "@/lib/helpers"
-import { PAGINATION } from "@/lib/constants"
-import type { Property, PropertyFilter } from "@/lib/types"
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { SearchFilterBar } from "@/components/search-filter-bar";
+import { PropertyCard } from "@/components/property-card";
+import { EmptyState } from "@/components/empty-state";
+import { Pagination } from "@/components/pagination";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/context/toast-context";
+import { favoriteAPI } from "@/services/api";
+import { filterProperties, sortProperties } from "@/lib/helpers";
+import { PAGINATION, ROUTES } from "@/lib/constants";
+import type { Property, PropertyFilter } from "@/lib/types";
 
 interface HomeClientProps {
-  initialProperties: Property[]
+  initialProperties: Property[];
 }
 
 export function HomeClient({ initialProperties }: HomeClientProps) {
-  const [filters, setFilters] = useState<PropertyFilter>({})
+  const router = useRouter();
+  const { user } = useAuth();
+  const { addToast } = useToast();
+  const [filters, setFilters] = useState<PropertyFilter>({});
   const [sortBy, setSortBy] = useState<
     "price-asc" | "price-desc" | "newest" | "oldest"
-  >("newest")
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
-  const [properties] = useState<Property[]>(initialProperties)
-  const [currentPage, setCurrentPage] = useState(1)
+  >("newest");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [properties] = useState<Property[]>(initialProperties);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFavoritesLoading, setIsFavoritesLoading] = useState(false);
 
   const filteredProperties = useMemo(() => {
-    let result = filterProperties(properties, filters)
-    return sortProperties(result, sortBy)
-  }, [filters, properties, sortBy])
+    let result = filterProperties(properties, filters);
+    return sortProperties(result, sortBy);
+  }, [filters, properties, sortBy]);
 
   const totalPages = Math.ceil(
     filteredProperties.length / PAGINATION.HOME_PROPERTIES_LIMIT,
-  )
+  );
+
+  useEffect(() => {
+    const loadFavoriteIds = async () => {
+      if (!user) {
+        setFavorites(new Set());
+        return;
+      }
+
+      setIsFavoritesLoading(true);
+      try {
+        const response = await favoriteAPI.getAll();
+        const favoriteIds = (response.data?.data?.favorites ?? [])
+          .map((fav: Record<string, unknown>) => {
+            const property = fav.propertyId as
+              | Record<string, unknown>
+              | undefined;
+            return property ? String(property._id || property.id || "") : "";
+          })
+          .filter(Boolean);
+
+        setFavorites(new Set(favoriteIds));
+      } catch {
+        addToast("Unable to load favorites.", "error");
+      } finally {
+        setIsFavoritesLoading(false);
+      }
+    };
+
+    loadFavoriteIds();
+  }, [user]);
 
   const paginatedProperties = useMemo(() => {
-    const startIdx = (currentPage - 1) * PAGINATION.HOME_PROPERTIES_LIMIT
+    const startIdx = (currentPage - 1) * PAGINATION.HOME_PROPERTIES_LIMIT;
     return filteredProperties.slice(
       startIdx,
       startIdx + PAGINATION.HOME_PROPERTIES_LIMIT,
-    )
-  }, [currentPage, filteredProperties])
+    );
+  }, [currentPage, filteredProperties]);
 
-  const handleFavoriteToggle = (propertyId: string, isFavorited: boolean) => {
-    setFavorites((prev) => {
-      const next = new Set(prev)
+  const handleFavoriteToggle = async (
+    propertyId: string,
+    isFavorited: boolean,
+  ) => {
+    if (!user) {
+      addToast("Please log in to save favorites.", "info");
+      router.push(ROUTES.LOGIN);
+      return;
+    }
+
+    try {
       if (isFavorited) {
-        next.add(propertyId)
+        await favoriteAPI.add(propertyId);
+        addToast("Added to favorites!", "success");
       } else {
-        next.delete(propertyId)
+        await favoriteAPI.remove(propertyId);
+        addToast("Removed from favorites.", "info");
       }
-      return next
-    })
-  }
+
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (isFavorited) {
+          next.add(propertyId);
+        } else {
+          next.delete(propertyId);
+        }
+        return next;
+      });
+    } catch {
+      addToast("Unable to update favorite. Please try again.", "error");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,8 +159,8 @@ export function HomeClient({ initialProperties }: HomeClientProps) {
             action={{
               label: "Clear Filters",
               onClick: () => {
-                setFilters({})
-                setCurrentPage(1)
+                setFilters({});
+                setCurrentPage(1);
               },
             }}
           />
@@ -125,8 +184,8 @@ export function HomeClient({ initialProperties }: HomeClientProps) {
                   currentPage={currentPage}
                   totalPages={totalPages}
                   onPageChange={(page) => {
-                    setCurrentPage(page)
-                    window.scrollTo({ top: 0, behavior: "smooth" })
+                    setCurrentPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                   totalItems={filteredProperties.length}
                   itemsPerPage={PAGINATION.HOME_PROPERTIES_LIMIT}
@@ -137,5 +196,5 @@ export function HomeClient({ initialProperties }: HomeClientProps) {
         )}
       </section>
     </div>
-  )
+  );
 }

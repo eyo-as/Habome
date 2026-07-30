@@ -60,7 +60,7 @@ export function getDashboardRedirectPath(role: string): string {
     case "owner":
       return "/owner";
     case "user":
-      return "/user";
+      return "/";
     default:
       return "/";
   }
