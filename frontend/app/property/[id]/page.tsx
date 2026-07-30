@@ -3,7 +3,12 @@ import { PropertyDetailClient } from "@/components/property-detail-client";
 import { normalizeProperty } from "@/lib/property-utils";
 import type { Property } from "@/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL is not configured. Set the backend URL in Vercel environment variables.",
+  );
+}
 
 async function getProperty(id: string): Promise<Property> {
   const res = await fetch(`${API_URL}/properties/${id}`, {
