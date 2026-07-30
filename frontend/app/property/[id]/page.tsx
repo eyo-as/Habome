@@ -11,14 +11,33 @@ if (!API_URL) {
 }
 
 async function getProperty(id: string): Promise<Property> {
-  const res = await fetch(`${API_URL}/properties/${id}`, {
-    cache: "no-store",
-  });
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_URL}/properties/${id}`, {
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error(
+      "Property detail fetch failed:",
+      error,
+      "API_URL=",
+      API_URL,
+      "id=",
+      id,
+    );
+    throw new Error("Failed to load property");
+  }
 
   if (!res.ok) {
     if (res.status === 404) {
       notFound();
     }
+
+    const body = await res.text();
+    console.error(
+      `Property detail fetch returned ${res.status} ${res.statusText}: ${body}`,
+    );
     throw new Error("Failed to load property");
   }
 
