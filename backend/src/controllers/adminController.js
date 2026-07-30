@@ -24,6 +24,18 @@ const disableProperty = async (req, res) => {
   res.status(200).json({ success: true, data: { property } });
 };
 
+const deleteProperty = async (req, res) => {
+  const property = await adminService.deleteProperty(req.params.id);
+
+  res.status(200).json({ success: true, data: { property } });
+};
+
+const deleteUser = async (req, res) => {
+  const user = await adminService.deleteUser(req.params.id);
+
+  res.status(200).json({ success: true, data: { user } });
+};
+
 const getMetrics = async (req, res) => {
   const metrics = await adminService.getMetrics();
 
@@ -33,4 +45,11 @@ const getMetrics = async (req, res) => {
   });
 };
 
-module.exports = { getAllProperties, getAllUsers, disableProperty, getMetrics };
+module.exports = {
+  getAllProperties,
+  getAllUsers,
+  disableProperty,
+  deleteProperty,
+  deleteUser,
+  getMetrics,
+};

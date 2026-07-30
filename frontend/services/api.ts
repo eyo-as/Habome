@@ -66,6 +66,8 @@ export const adminAPI = {
   getAllUsers: (params?: Record<string, number>) =>
     api.get("/admin/users", { params }),
   disableProperty: (id: string) => api.patch(`/admin/properties/${id}/disable`),
+  deleteProperty: (id: string) => api.delete(`/admin/properties/${id}`),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   getMetrics: () => api.get("/admin/metrics"),
 };
 

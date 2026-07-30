@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import {
   Edit2,
   Trash2,
@@ -29,6 +30,8 @@ export default function OwnerPropertiesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadProperties = async () => {
@@ -104,13 +107,9 @@ export default function OwnerPropertiesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this property?")) {
-      return;
-    }
+    if (isUpdatingId || isDeleting) return;
 
-    if (isUpdatingId) return;
-
-    setIsUpdatingId(id);
+    setIsDeleting(true);
     try {
       await propertyAPI.delete(id);
       addToast("Property deleted successfully.", "success");
@@ -118,6 +117,8 @@ export default function OwnerPropertiesPage() {
     } catch {
       addToast("We could not delete this property.", "error");
     } finally {
+      setIsDeleting(false);
+      setPendingDeleteId(null);
       setIsUpdatingId(null);
     }
   };
@@ -256,10 +257,12 @@ export default function OwnerPropertiesPage() {
                               <Archive size={18} />
                             </button>
                             <button
-                              onClick={() => handleDelete(property.id)}
+                              onClick={() => setPendingDeleteId(property.id)}
                               className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors text-muted-foreground hover:text-red-600"
                               title="Delete"
-                              disabled={isUpdatingId === property.id}
+                              disabled={
+                                isUpdatingId === property.id || isDeleting
+                              }
                             >
                               <Trash2 size={18} />
                             </button>
@@ -339,9 +342,9 @@ export default function OwnerPropertiesPage() {
                           <Archive size={16} />
                         </button>
                         <button
-                          onClick={() => handleDelete(property.id)}
+                          onClick={() => setPendingDeleteId(property.id)}
                           className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-colors text-red-600"
-                          disabled={isUpdatingId === property.id}
+                          disabled={isUpdatingId === property.id || isDeleting}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -356,6 +359,22 @@ export default function OwnerPropertiesPage() {
                 </div>
               )}
             </div>
+
+            <DeleteConfirmationModal
+              isOpen={Boolean(pendingDeleteId)}
+              title="Delete property"
+              description="This action will permanently remove the listing from your account."
+              confirmLabel="Delete property"
+              isLoading={isDeleting}
+              onConfirm={() => {
+                if (pendingDeleteId) {
+                  void handleDelete(pendingDeleteId);
+                }
+              }}
+              onCancel={() => {
+                setPendingDeleteId(null);
+              }}
+            />
 
             {totalPages > 1 && (
               <div className="p-4 md:p-6 border-t border-border">

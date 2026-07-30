@@ -49,6 +49,26 @@ const disableProperty = async (propertyId) => {
   return property;
 };
 
+const deleteProperty = async (propertyId) => {
+  const property = await Property.findById(propertyId);
+  if (!property) throw createError("Property not found", 404);
+
+  property.deletedAt = new Date();
+  await property.save();
+
+  return property;
+};
+
+const deleteUser = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw createError("User not found", 404);
+
+  user.deletedAt = new Date();
+  await user.save();
+
+  return user;
+};
+
 const getMetrics = async () => {
   const [totalUsers, totalProperties, publishedProperties] = await Promise.all([
     User.countDocuments({ deletedAt: null }),
@@ -63,5 +83,7 @@ module.exports = {
   getAllProperties,
   getAllUsers,
   disableProperty,
+  deleteProperty,
+  deleteUser,
   getMetrics,
 };

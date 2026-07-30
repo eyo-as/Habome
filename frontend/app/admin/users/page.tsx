@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Shield, Trash2, Mail } from "lucide-react";
+import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { Pagination } from "@/components/pagination";
 import { ROLE_LABELS, PAGINATION } from "@/lib/constants";
@@ -19,49 +20,39 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "owner" | "user">("all");
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const loadUsers = async () => {
+    try {
+      setIsLoadingData(true);
+      const response = await adminAPI.getAllUsers({ page: 1, limit: 100 });
+
+      const items = (response.data?.data?.users ?? []) as Array<
+        Record<string, unknown>
+      >;
+      setUsers(
+        items.map((user) => ({
+          id: String(user._id || user.id || ""),
+          name: typeof user.name === "string" ? user.name : "",
+          email: typeof user.email === "string" ? user.email : "",
+          role: (user.role as User["role"]) || "user",
+          createdAt: user.createdAt
+            ? new Date(String(user.createdAt))
+            : new Date(),
+        })),
+      );
+      setError(null);
+    } catch {
+      setError("We could not load users right now.");
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-
-    const loadUsers = async () => {
-      try {
-        setIsLoadingData(true);
-        const response = await adminAPI.getAllUsers({ page: 1, limit: 100 });
-
-        if (isMounted) {
-          const items = (response.data?.data?.users ?? []) as Array<
-            Record<string, unknown>
-          >;
-          setUsers(
-            items.map((user) => ({
-              id: String(user._id || user.id || ""),
-              name: typeof user.name === "string" ? user.name : "",
-              email: typeof user.email === "string" ? user.email : "",
-              role: (user.role as User["role"]) || "user",
-              createdAt: user.createdAt
-                ? new Date(String(user.createdAt))
-                : new Date(),
-            })),
-          );
-          setError(null);
-        }
-      } catch {
-        if (isMounted) {
-          setError("We could not load users right now.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingData(false);
-        }
-      }
-    };
-
-    loadUsers();
-
-    return () => {
-      isMounted = false;
-    };
+    void loadUsers();
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -85,9 +76,20 @@ export default function AdminUsersPage() {
     );
   }, [currentPage, filteredUsers]);
 
-  const handleDeleteUser = (id: string) => {
-    console.log("Delete user:", id);
-    addToast("User deleted successfully", "success");
+  const handleDeleteUser = async (id: string) => {
+    if (isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      await adminAPI.deleteUser(id);
+      addToast("User deleted successfully", "success");
+      setPendingDeleteId(null);
+      await loadUsers();
+    } catch {
+      addToast("We could not delete this user.", "error");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (isLoading || isLoadingData) {
@@ -173,7 +175,7 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="col-span-2 flex gap-2">
                       <button
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => setPendingDeleteId(user.id)}
                         className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-600 hover:text-red-500 transition-colors"
                         title="Delete user"
                       >
@@ -194,6 +196,20 @@ export default function AdminUsersPage() {
             <p className="text-muted-foreground">No users found</p>
           </div>
         )}
+
+        <DeleteConfirmationModal
+          isOpen={Boolean(pendingDeleteId)}
+          title="Delete user"
+          description="This action will remove the user account from the platform."
+          confirmLabel="Delete user"
+          isLoading={isDeleting}
+          onConfirm={() => {
+            if (pendingDeleteId) {
+              void handleDeleteUser(pendingDeleteId);
+            }
+          }}
+          onCancel={() => setPendingDeleteId(null)}
+        />
 
         {totalPages > 1 && (
           <div className="mt-8">
