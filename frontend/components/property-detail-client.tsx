@@ -243,6 +243,7 @@ export function PropertyDetailClient({ property }: PropertyDetailClientProps) {
           onClose={() => setIsContactModalOpen(false)}
           owner={property.owner}
           propertyTitle={property.title}
+          propertyId={property.id}
         />
       )}
     </div>

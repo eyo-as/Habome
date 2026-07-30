@@ -38,6 +38,16 @@ export interface Favorite {
   createdAt: Date;
 }
 
+// Contact message types
+export interface ContactMessage {
+  id: string;
+  senderId?: User | string;
+  ownerId?: string;
+  propertyId?: Property | string;
+  message: string;
+  createdAt?: Date | string;
+}
+
 // API Response types
 export interface ApiResponse<T = unknown> {
   success: boolean;
