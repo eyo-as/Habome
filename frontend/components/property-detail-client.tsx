@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   MapPin,
   Bed,
@@ -16,6 +17,9 @@ import { formatPrice, formatDate } from "@/lib/helpers";
 import { getPropertyDisplayImages } from "@/lib/property-utils";
 import { ROUTES } from "@/lib/constants";
 import { ContactOwnerModal } from "@/components/contact-owner-modal";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/context/toast-context";
+import { favoriteAPI } from "@/services/api";
 import type { Property } from "@/lib/types";
 
 interface PropertyDetailClientProps {
@@ -23,16 +27,76 @@ interface PropertyDetailClientProps {
 }
 
 export function PropertyDetailClient({ property }: PropertyDetailClientProps) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { addToast } = useToast();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isFavoriteUpdating, setIsFavoriteUpdating] = useState(false);
 
   const displayImages = getPropertyDisplayImages(property);
   const selectedImage =
     displayImages[Math.min(selectedImageIndex, displayImages.length - 1)];
 
-  const handleFavoriteToggle = () => {
-    setIsFavorited(!isFavorited);
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (!user) {
+        setIsFavorited(false);
+        return;
+      }
+
+      try {
+        const response = await favoriteAPI.getAll();
+        const favoriteIds = (response.data?.data?.favorites ?? [])
+          .map((fav: Record<string, unknown>) => {
+            const propertyRef = fav.propertyId as
+              | Record<string, unknown>
+              | undefined;
+            return propertyRef
+              ? String(propertyRef._id || propertyRef.id || "")
+              : "";
+          })
+          .filter(Boolean);
+
+        setIsFavorited(favoriteIds.includes(property.id));
+      } catch {
+        setIsFavorited(false);
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [property.id, user]);
+
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      addToast("Please log in to save favorites.", "info");
+      router.push(ROUTES.LOGIN);
+      return;
+    }
+
+    if (user.role !== "user") {
+      addToast("Only regular users can save favorites.", "error");
+      return;
+    }
+
+    setIsFavoriteUpdating(true);
+
+    try {
+      if (isFavorited) {
+        await favoriteAPI.remove(property.id);
+        setIsFavorited(false);
+        addToast("Removed from favorites.", "info");
+      } else {
+        await favoriteAPI.add(property.id);
+        setIsFavorited(true);
+        addToast("Added to favorites!", "success");
+      }
+    } catch {
+      addToast("Unable to update favorite. Please try again.", "error");
+    } finally {
+      setIsFavoriteUpdating(false);
+    }
   };
 
   return (
@@ -67,7 +131,8 @@ export function PropertyDetailClient({ property }: PropertyDetailClientProps) {
                 />
                 <button
                   onClick={handleFavoriteToggle}
-                  className="absolute right-4 top-4 rounded-full bg-white/90 p-3 shadow-lg transition-all hover:bg-white dark:bg-black/50 dark:hover:bg-black"
+                  disabled={isFavoriteUpdating}
+                  className="absolute right-4 top-4 rounded-full bg-white/90 p-3 shadow-lg transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-70 dark:bg-black/50 dark:hover:bg-black"
                   aria-label={
                     isFavorited ? "Remove from favorites" : "Add to favorites"
                   }
