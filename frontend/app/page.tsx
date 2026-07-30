@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { normalizeProperty } from "@/lib/property-utils";
 import { HomeClient } from "@/components/home-client";
 import type { Property } from "@/lib/types";

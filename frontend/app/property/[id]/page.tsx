@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { PropertyDetailClient } from "@/components/property-detail-client";
 import { normalizeProperty } from "@/lib/property-utils";
