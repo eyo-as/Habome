@@ -11,14 +11,14 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
             <div>
-              <p className="font-semibold text-foreground">PropertyHub</p>
+              <p className="font-semibold text-foreground">Habome</p>
               <p className="text-xs text-muted-foreground">Modern Property Listings Platform</p>
             </div>
           </div>
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground text-center sm:text-right">
-            © {currentYear} PropertyHub. All rights reserved.
+            © {currentYear} Habome. All rights reserved.
           </p>
         </div>
       </div>

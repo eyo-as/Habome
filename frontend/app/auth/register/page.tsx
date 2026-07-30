@@ -118,7 +118,7 @@ export default function RegisterPage() {
             Create Account
           </h1>
           <p className="text-muted-foreground">
-            Join PropertyHub and start listing or browsing properties
+            Join Habome and start listing or browsing properties
           </p>
         </div>
 

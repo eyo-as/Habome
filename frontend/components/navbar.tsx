@@ -1,38 +1,41 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Building2, Menu, X } from 'lucide-react'
-import { useState } from 'react'
-import { cn } from '@/lib/utils'
-import { ROUTES, NAV_LABELS } from '@/lib/constants'
-import { useAuth } from '@/context/auth-context'
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Building2, Menu, X } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { ROUTES, NAV_LABELS } from "@/lib/constants";
+import { useAuth } from "@/context/auth-context";
 
 export function Navbar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { user, logout } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
-    logout()
-    router.push('/')
-    setIsOpen(false)
-  }
+    logout();
+    router.push("/");
+    setIsOpen(false);
+  };
 
-  const isPublicPage = !user
-  const isOwner = user?.role === 'owner'
-  const isAdmin = user?.role === 'admin'
-  const isUser = user?.role === 'user'
+  const isPublicPage = !user;
+  const isOwner = user?.role === "owner";
+  const isAdmin = user?.role === "admin";
+  const isUser = user?.role === "user";
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href={ROUTES.HOME} className="flex items-center gap-2 font-bold text-lg">
+          <Link
+            href={ROUTES.HOME}
+            className="flex items-center gap-2 font-bold text-lg"
+          >
             <Building2 className="h-6 w-6 text-primary" />
-            <span>PropertyHub</span>
+            <span>Habome</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -40,8 +43,10 @@ export function Navbar() {
             <Link
               href={ROUTES.HOME}
               className={cn(
-                'text-sm font-medium transition-colors hover:text-primary',
-                pathname === ROUTES.HOME ? 'text-primary' : 'text-muted-foreground'
+                "text-sm font-medium transition-colors hover:text-primary",
+                pathname === ROUTES.HOME
+                  ? "text-primary"
+                  : "text-muted-foreground",
               )}
             >
               {NAV_LABELS.HOME}
@@ -53,8 +58,10 @@ export function Navbar() {
                 <Link
                   href={ROUTES.OWNER_PROPERTIES}
                   className={cn(
-                    'text-sm font-medium transition-colors hover:text-primary',
-                    pathname.startsWith(ROUTES.OWNER) ? 'text-primary' : 'text-muted-foreground'
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    pathname.startsWith(ROUTES.OWNER)
+                      ? "text-primary"
+                      : "text-muted-foreground",
                   )}
                 >
                   {NAV_LABELS.MY_PROPERTIES}
@@ -67,8 +74,10 @@ export function Navbar() {
                 <Link
                   href={ROUTES.ADMIN}
                   className={cn(
-                    'text-sm font-medium transition-colors hover:text-primary',
-                    pathname.startsWith(ROUTES.ADMIN) ? 'text-primary' : 'text-muted-foreground'
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    pathname.startsWith(ROUTES.ADMIN)
+                      ? "text-primary"
+                      : "text-muted-foreground",
                   )}
                 >
                   {NAV_LABELS.DASHBOARD}
@@ -81,8 +90,10 @@ export function Navbar() {
                 <Link
                   href={ROUTES.USER_FAVORITES}
                   className={cn(
-                    'text-sm font-medium transition-colors hover:text-primary',
-                    pathname === ROUTES.USER_FAVORITES ? 'text-primary' : 'text-muted-foreground'
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    pathname === ROUTES.USER_FAVORITES
+                      ? "text-primary"
+                      : "text-muted-foreground",
                   )}
                 >
                   {NAV_LABELS.FAVORITES}
@@ -96,8 +107,10 @@ export function Navbar() {
                 <Link
                   href={ROUTES.LOGIN}
                   className={cn(
-                    'text-sm font-medium transition-colors hover:text-primary',
-                    pathname === ROUTES.LOGIN ? 'text-primary' : 'text-muted-foreground'
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    pathname === ROUTES.LOGIN
+                      ? "text-primary"
+                      : "text-muted-foreground",
                   )}
                 >
                   {NAV_LABELS.LOGIN}
@@ -135,10 +148,10 @@ export function Navbar() {
             <Link
               href={ROUTES.HOME}
               className={cn(
-                'block px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                "block px-4 py-2 text-sm font-medium rounded-md transition-colors",
                 pathname === ROUTES.HOME
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted'
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted",
               )}
               onClick={() => setIsOpen(false)}
             >
@@ -149,10 +162,10 @@ export function Navbar() {
               <Link
                 href={ROUTES.OWNER_PROPERTIES}
                 className={cn(
-                  'block px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                  "block px-4 py-2 text-sm font-medium rounded-md transition-colors",
                   pathname.startsWith(ROUTES.OWNER)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted'
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted",
                 )}
                 onClick={() => setIsOpen(false)}
               >
@@ -164,10 +177,10 @@ export function Navbar() {
               <Link
                 href={ROUTES.ADMIN}
                 className={cn(
-                  'block px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                  "block px-4 py-2 text-sm font-medium rounded-md transition-colors",
                   pathname.startsWith(ROUTES.ADMIN)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted'
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted",
                 )}
                 onClick={() => setIsOpen(false)}
               >
@@ -179,10 +192,10 @@ export function Navbar() {
               <Link
                 href={ROUTES.USER_FAVORITES}
                 className={cn(
-                  'block px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                  "block px-4 py-2 text-sm font-medium rounded-md transition-colors",
                   pathname === ROUTES.USER_FAVORITES
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted'
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted",
                 )}
                 onClick={() => setIsOpen(false)}
               >
@@ -195,10 +208,10 @@ export function Navbar() {
                 <Link
                   href={ROUTES.LOGIN}
                   className={cn(
-                    'block px-4 py-2 text-sm font-medium rounded-md transition-colors',
+                    "block px-4 py-2 text-sm font-medium rounded-md transition-colors",
                     pathname === ROUTES.LOGIN
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted'
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted",
                   )}
                   onClick={() => setIsOpen(false)}
                 >
@@ -224,5 +237,5 @@ export function Navbar() {
         )}
       </div>
     </nav>
-  )
+  );
 }

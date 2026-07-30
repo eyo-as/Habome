@@ -78,7 +78,7 @@ export default function LoginPage() {
             Welcome Back
           </h1>
           <p className="text-muted-foreground">
-            Sign in to your PropertyHub account
+            Sign in to your Habome account
           </p>
         </div>
 
