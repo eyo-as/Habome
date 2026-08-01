@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { normalizeProperty } from "@/lib/property-utils";
 import { HomeClient } from "@/components/home-client";
 import type { Property } from "@/lib/types";
@@ -36,7 +38,6 @@ async function getProperties(): Promise<Property[]> {
 
   return items.map((item: Record<string, unknown>) => normalizeProperty(item));
 }
-
 
 export default async function HomePage() {
   const properties = await getProperties();
