@@ -1,87 +1,97 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
-import { DashboardSidebar } from '@/components/dashboard-sidebar'
-import { ROUTES } from '@/lib/constants'
-import { useProtectedRoute } from '@/hooks/use-protected-route'
-import { useToast } from '@/context/toast-context'
-import type { Property } from '@/lib/types'
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { ROUTES } from "@/lib/constants";
+import { useProtectedRoute } from "@/hooks/use-protected-route";
+import { useToast } from "@/context/toast-context";
+import type { Property } from "@/lib/types";
 
 // Mock property data - in a real app, fetch by ID
 const MOCK_PROPERTY: Property = {
-  id: '1',
-  title: 'Modern Downtown Penthouse',
-  description: 'Stunning luxury penthouse with panoramic city views',
-  location: 'Downtown, New York',
+  id: "1",
+  title: "Modern Downtown Penthouse",
+  description: "Stunning luxury penthouse with panoramic city views",
+  location: "Downtown, New York",
   price: 2500000,
   bedrooms: 3,
   bathrooms: 3,
   squareFeet: 3500,
   images: [],
-  status: 'published',
-  ownerId: 'owner1',
-  createdAt: new Date('2024-01-15'),
-  updatedAt: new Date('2024-01-15'),
-}
+  status: "published",
+  ownerId: "owner1",
+  createdAt: new Date("2024-01-15"),
+  updatedAt: new Date("2024-01-15"),
+};
 
-export default function EditPropertyPage({ params }: { params: { id: string } }) {
-  const { isLoading } = useProtectedRoute('owner')
-  const { addToast } = useToast()
-  const [property] = useState<Property>(MOCK_PROPERTY)
+export default function EditPropertyPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { isLoading } = useProtectedRoute("owner");
+  const { addToast } = useToast();
+  const [property] = useState<Property>(MOCK_PROPERTY);
   const [formData, setFormData] = useState({
     title: property.title,
     description: property.description,
     location: property.location,
     price: property.price.toString(),
-    bedrooms: property.bedrooms.toString(),
-    bathrooms: property.bathrooms.toString(),
-    squareFeet: property.squareFeet.toString(),
-  })
-  const [images, setImages] = useState<string[]>(property.images || [])
-  const [isSubmitting, setIsSubmitting] = useState(false)
+    bedrooms: property.bedrooms?.toString() ?? "",
+    bathrooms: property.bathrooms?.toString() ?? "",
+    squareFeet: property.squareFeet?.toString() ?? "",
+  });
+  const [images, setImages] = useState<string[]>(property.images || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
 
   const handleAddImage = () => {
-    setImages((prev) => [...prev, ''])
-  }
+    setImages((prev) => [...prev, ""]);
+  };
 
   const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index))
-  }
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleImageChange = (index: number, value: string) => {
     setImages((prev) => {
-      const newImages = [...prev]
-      newImages[index] = value
-      return newImages
-    })
-  }
+      const newImages = [...prev];
+      newImages[index] = value;
+      return newImages;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      console.log('Update property:', { ...formData, images, propertyId: params.id })
-      addToast('Property updated successfully!', 'success')
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("Update property:", {
+        ...formData,
+        images,
+        propertyId: params.id,
+      });
+      addToast("Property updated successfully!", "success");
       // In a real app, redirect to properties list
     } catch (error) {
-      console.error('Error updating property:', error)
-      addToast('Failed to update property', 'error')
+      console.error("Error updating property:", error);
+      addToast("Failed to update property", "error");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -91,7 +101,7 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -112,15 +122,21 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
           </Link>
 
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">Edit Property</h1>
-            <p className="text-muted-foreground mt-1">Update the details of your property</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              Edit Property
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Update the details of your property
+            </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Property Title</label>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Property Title
+              </label>
               <input
                 type="text"
                 name="title"
@@ -133,7 +149,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Description</label>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Description
+              </label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -146,7 +164,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
 
             {/* Location */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Location</label>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Location
+              </label>
               <input
                 type="text"
                 name="location"
@@ -159,7 +179,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
 
             {/* Price */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Price ($)</label>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Price ($)
+              </label>
               <input
                 type="number"
                 name="price"
@@ -173,7 +195,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
             {/* Grid: Bedrooms, Bathrooms, Square Feet */}
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Bedrooms</label>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Bedrooms
+                </label>
                 <input
                   type="number"
                   name="bedrooms"
@@ -184,7 +208,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Bathrooms</label>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Bathrooms
+                </label>
                 <input
                   type="number"
                   name="bathrooms"
@@ -195,7 +221,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Square Feet</label>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Square Feet
+                </label>
                 <input
                   type="number"
                   name="squareFeet"
@@ -210,7 +238,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
             {/* Images */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-foreground">Property Images</label>
+                <label className="block text-sm font-medium text-foreground">
+                  Property Images
+                </label>
                 <button
                   type="button"
                   onClick={handleAddImage}
@@ -228,7 +258,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
                       <input
                         type="text"
                         value={image}
-                        onChange={(e) => handleImageChange(index, e.target.value)}
+                        onChange={(e) =>
+                          handleImageChange(index, e.target.value)
+                        }
                         placeholder="Image URL or path"
                         className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       />
@@ -243,7 +275,9 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-3">No images added yet</p>
+                <p className="text-sm text-muted-foreground py-3">
+                  No images added yet
+                </p>
               )}
             </div>
 
@@ -260,12 +294,12 @@ export default function EditPropertyPage({ params }: { params: { id: string } })
                 disabled={isSubmitting}
                 className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSubmitting ? 'Updating...' : 'Update Property'}
+                {isSubmitting ? "Updating..." : "Update Property"}
               </button>
             </div>
           </form>
         </div>
       </main>
     </div>
-  )
+  );
 }
