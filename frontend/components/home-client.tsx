@@ -41,7 +41,7 @@ export function HomeClient({ initialProperties }: HomeClientProps) {
 
   useEffect(() => {
     const loadFavoriteIds = async () => {
-      if (!user) {
+      if (!user || user.role !== "user") {
         setFavorites(new Set());
         return;
       }
@@ -84,6 +84,11 @@ export function HomeClient({ initialProperties }: HomeClientProps) {
     if (!user) {
       addToast("Please log in to save favorites.", "info");
       router.push(ROUTES.LOGIN);
+      return;
+    }
+
+    if (user.role !== "user") {
+      addToast("Only regular users can save favorites.", "info");
       return;
     }
 

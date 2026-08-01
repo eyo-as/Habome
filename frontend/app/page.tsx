@@ -37,7 +37,6 @@ async function getProperties(): Promise<Property[]> {
   return items.map((item: Record<string, unknown>) => normalizeProperty(item));
 }
 
-
 export default async function HomePage() {
   const properties = await getProperties();
   return <HomeClient initialProperties={properties} />;

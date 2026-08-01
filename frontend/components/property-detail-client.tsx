@@ -41,7 +41,7 @@ export function PropertyDetailClient({ property }: PropertyDetailClientProps) {
 
   useEffect(() => {
     const loadFavoriteStatus = async () => {
-      if (!user) {
+      if (!user || user.role !== "user") {
         setIsFavorited(false);
         return;
       }
