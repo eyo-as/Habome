@@ -1,50 +1,111 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronUp, UploadCloud, X, Star } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { ROUTES } from "@/lib/constants";
 import { useProtectedRoute } from "@/hooks/use-protected-route";
 import { useToast } from "@/context/toast-context";
+import { propertyAPI, uploadAPI } from "@/services/api";
+import { normalizeProperty } from "@/lib/property-utils";
 import type { Property } from "@/lib/types";
 
-// Mock property data - in a real app, fetch by ID
-const MOCK_PROPERTY: Property = {
-  id: "1",
-  title: "Modern Downtown Penthouse",
-  description: "Stunning luxury penthouse with panoramic city views",
-  location: "Downtown, New York",
-  price: 2500000,
-  bedrooms: 3,
-  bathrooms: 3,
-  squareFeet: 3500,
-  images: [],
-  status: "published",
-  ownerId: "owner1",
-  createdAt: new Date("2024-01-15"),
-  updatedAt: new Date("2024-01-15"),
-};
+type ImageItem =
+  | {
+      id: string;
+      type: "existing";
+      url: string;
+    }
+  | {
+      id: string;
+      type: "file";
+      file: File;
+      previewUrl: string;
+    };
 
 export default function EditPropertyPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { isLoading } = useProtectedRoute("owner");
+  const router = useRouter();
   const { addToast } = useToast();
-  const [property] = useState<Property>(MOCK_PROPERTY);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [isLoadingProperty, setIsLoadingProperty] = useState(true);
   const [formData, setFormData] = useState({
-    title: property.title,
-    description: property.description,
-    location: property.location,
-    price: property.price.toString(),
-    bedrooms: property.bedrooms?.toString() ?? "",
-    bathrooms: property.bathrooms?.toString() ?? "",
-    squareFeet: property.squareFeet?.toString() ?? "",
+    title: "",
+    description: "",
+    location: "",
+    price: "",
+    bedrooms: "",
+    bathrooms: "",
+    squareFeet: "",
   });
-  const [images, setImages] = useState<string[]>(property.images || []);
+  const [imageItems, setImageItems] = useState<ImageItem[]>([]);
+  const previewUrlsRef = useRef<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProperty = async () => {
+      try {
+        const resolvedParams = await params;
+        const response = await propertyAPI.getById(resolvedParams.id);
+        const rawProperty = response.data?.data?.property as
+          | Record<string, unknown>
+          | undefined;
+
+        if (!rawProperty) {
+          throw new Error("Property not found");
+        }
+
+        const normalized = normalizeProperty(rawProperty);
+
+        if (isMounted) {
+          setProperty(normalized);
+          setImageItems(
+            normalized.images.map((url) => ({
+              id: url,
+              type: "existing" as const,
+              url,
+            })),
+          );
+          setFormData({
+            title: normalized.title,
+            description: normalized.description,
+            location: normalized.location,
+            price: normalized.price.toString(),
+            bedrooms: normalized.bedrooms?.toString() ?? "",
+            bathrooms: normalized.bathrooms?.toString() ?? "",
+            squareFeet: normalized.squareFeet?.toString() ?? "",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load property:", error);
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to load this property.";
+        addToast(message, "error");
+        router.push(ROUTES.OWNER_PROPERTIES);
+      } finally {
+        if (isMounted) {
+          setIsLoadingProperty(false);
+        }
+      }
+    };
+
+    void loadProperty();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [addToast, params, router]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -56,44 +117,133 @@ export default function EditPropertyPage({
     }));
   };
 
-  const handleAddImage = () => {
-    setImages((prev) => [...prev, ""]);
+  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      const newItems = files.map((file) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        type: "file" as const,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+
+      previewUrlsRef.current.push(...newItems.map((item) => item.previewUrl));
+
+      setImageItems((prev) => [...prev, ...newItems]);
+    }
+    e.target.value = "";
   };
 
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleImageChange = (index: number, value: string) => {
-    setImages((prev) => {
-      const newImages = [...prev];
-      newImages[index] = value;
-      return newImages;
+  const removeImageItem = (id: string) => {
+    setImageItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      const removed = prev.find((item) => item.id === id);
+      if (removed?.type === "file") {
+        URL.revokeObjectURL(removed.previewUrl);
+        previewUrlsRef.current = previewUrlsRef.current.filter(
+          (url) => url !== removed.previewUrl,
+        );
+      }
+      return next;
     });
   };
 
+  const makeRepresentative = (id: string) => {
+    setImageItems((prev) => {
+      const index = prev.findIndex((item) => item.id === id);
+      if (index <= 0) return prev;
+
+      const next = [...prev];
+      const [item] = next.splice(index, 1);
+      next.unshift(item);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current = [];
+    };
+  }, []);
+
+  const fileItems = useMemo(
+    () =>
+      imageItems.filter(
+        (item): item is Extract<ImageItem, { type: "file" }> =>
+          item.type === "file",
+      ),
+    [imageItems],
+  );
+  const existingItemCount = useMemo(
+    () => imageItems.filter((item) => item.type === "existing").length,
+    [imageItems],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!property) return;
+
     setIsSubmitting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Update property:", {
-        ...formData,
-        images,
-        propertyId: params.id,
+      const uploadedUrlsByFileId = new Map<string, string>();
+      const fileItemsInOrder = fileItems;
+
+      if (fileItemsInOrder.length > 0) {
+        const uploadFormData = new FormData();
+        fileItemsInOrder.forEach((item) =>
+          uploadFormData.append("images", item.file),
+        );
+
+        const uploadResponse = await uploadAPI.uploadImages(uploadFormData);
+        const newUrls = uploadResponse.data?.data?.urls ?? [];
+
+        fileItemsInOrder.forEach((item, index) => {
+          const url = newUrls[index];
+          if (url) {
+            uploadedUrlsByFileId.set(item.id, url);
+          }
+        });
+      }
+
+      const imageUrls = imageItems.flatMap((item) => {
+        if (item.type === "existing") {
+          return [item.url];
+        }
+
+        const uploadedUrl = uploadedUrlsByFileId.get(item.id);
+        return uploadedUrl ? [uploadedUrl] : [];
       });
+
+      const payload = {
+        ...formData,
+        price: Number(formData.price),
+        bedrooms: formData.bedrooms ? Number(formData.bedrooms) : null,
+        bathrooms: formData.bathrooms ? Number(formData.bathrooms) : null,
+        squareFeet: formData.squareFeet ? Number(formData.squareFeet) : null,
+        images: imageUrls,
+      };
+
+      await propertyAPI.update(property.id, payload);
       addToast("Property updated successfully!", "success");
-      // In a real app, redirect to properties list
+      router.push(ROUTES.OWNER_PROPERTIES);
     } catch (error) {
       console.error("Error updating property:", error);
-      addToast("Failed to update property", "error");
+      const message =
+        (error as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ??
+        (error instanceof Error && error.message
+          ? error.message
+          : "Failed to update property");
+      addToast(message, "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingProperty) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -104,15 +254,16 @@ export default function EditPropertyPage({
     );
   }
 
+  if (!property) {
+    return null;
+  }
+
   return (
     <div className="flex gap-0 md:gap-6">
-      {/* Sidebar */}
       <DashboardSidebar role="owner" />
 
-      {/* Main Content */}
       <main className="flex-1 mt-16 md:mt-0 px-4 md:px-8 py-8">
         <div className="max-w-2xl mx-auto">
-          {/* Header */}
           <Link
             href={ROUTES.OWNER_PROPERTIES}
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors mb-6"
@@ -130,159 +281,272 @@ export default function EditPropertyPage({
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Property Title
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder="e.g., Luxury Downtown Penthouse"
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+              <h2 className="text-lg font-semibold text-foreground">
+                Basic Information
+              </h2>
 
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Describe your property..."
-                rows={5}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              />
-            </div>
-
-            {/* Location */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Location
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="e.g., Downtown, New York"
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* Price */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Price ($)
-              </label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="2500000"
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            {/* Grid: Bedrooms, Bathrooms, Square Feet */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Bedrooms
-                </label>
-                <input
-                  type="number"
-                  name="bedrooms"
-                  value={formData.bedrooms}
-                  onChange={handleInputChange}
-                  placeholder="3"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Bathrooms
-                </label>
-                <input
-                  type="number"
-                  name="bathrooms"
-                  value={formData.bathrooms}
-                  onChange={handleInputChange}
-                  placeholder="2"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Square Feet
-                </label>
-                <input
-                  type="number"
-                  name="squareFeet"
-                  value={formData.squareFeet}
-                  onChange={handleInputChange}
-                  placeholder="3500"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-
-            {/* Images */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-foreground">
-                  Property Images
-                </label>
-                <button
-                  type="button"
-                  onClick={handleAddImage}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors text-sm font-medium"
+              <div className="space-y-2">
+                <label
+                  htmlFor="title"
+                  className="block text-sm font-medium text-foreground"
                 >
-                  <Plus size={16} />
-                  Add Image
-                </button>
+                  Property Title
+                </label>
+                <input
+                  id="title"
+                  name="title"
+                  type="text"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Luxury Downtown Penthouse"
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  required
+                />
               </div>
 
-              {images.length > 0 ? (
+              <div className="space-y-2">
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-foreground"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Describe your property..."
+                  rows={5}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-medium text-foreground"
+                >
+                  Location
+                </label>
+                <input
+                  id="location"
+                  name="location"
+                  type="text"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Downtown, New York"
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+              <h2 className="text-lg font-semibold text-foreground">
+                Price & Details
+              </h2>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="price"
+                  className="block text-sm font-medium text-foreground"
+                >
+                  Price (USD)
+                </label>
+                <input
+                  id="price"
+                  name="price"
+                  type="number"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 500000"
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="grid gap-4 grid-cols-3">
                 <div className="space-y-2">
-                  {images.map((image, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={image}
-                        onChange={(e) =>
-                          handleImageChange(index, e.target.value)
-                        }
-                        placeholder="Image URL or path"
-                        className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="px-3 py-2.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
+                  <label
+                    htmlFor="bedrooms"
+                    className="block text-sm font-medium text-foreground"
+                  >
+                    Bedrooms
+                  </label>
+                  <input
+                    id="bedrooms"
+                    name="bedrooms"
+                    type="number"
+                    value={formData.bedrooms}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="bathrooms"
+                    className="block text-sm font-medium text-foreground"
+                  >
+                    Bathrooms
+                  </label>
+                  <input
+                    id="bathrooms"
+                    name="bathrooms"
+                    type="number"
+                    value={formData.bathrooms}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="squareFeet"
+                    className="block text-sm font-medium text-foreground"
+                  >
+                    Sq. Feet
+                  </label>
+                  <input
+                    id="squareFeet"
+                    name="squareFeet"
+                    type="number"
+                    value={formData.squareFeet}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Property Images
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  Uploaded to Cloudinary
+                </span>
+              </div>
+
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background px-4 py-6 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:text-primary">
+                <UploadCloud size={18} />
+                <span>
+                  {fileItems.length > 0
+                    ? `${fileItems.length} file(s) selected`
+                    : "Choose images to upload"}
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelection}
+                />
+              </label>
+
+              {imageItems.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">
+                    Ordered images
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {imageItems.map((item, index) => {
+                      const src =
+                        item.type === "existing" ? item.url : item.previewUrl;
+                      const label =
+                        item.type === "existing"
+                          ? "Existing image"
+                          : item.file.name;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-border bg-background overflow-hidden"
+                        >
+                          <div className="relative aspect-[4/3] bg-muted">
+                            <Image
+                              src={src}
+                              alt={label}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 640px) 100vw, 50vw"
+                            />
+                            {index === 0 ? (
+                              <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs font-medium text-white">
+                                <Star size={12} />
+                                Representative
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-2 p-3">
+                            <div>
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {label}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.type === "existing"
+                                  ? "Stored image"
+                                  : "New upload preview"}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              {index !== 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => makeRepresentative(item.id)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                >
+                                  <ChevronUp size={14} />
+                                  Make representative
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => removeImageItem(item.id)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+                              >
+                                <X size={14} />
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    The first image is used as the property cover image on the
+                    home page and cards.
+                    {existingItemCount > 0
+                      ? " Existing images keep their URLs; uploaded files are added in the order shown here."
+                      : ""}
+                  </p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-3">
-                  No images added yet
+                <p className="text-sm text-muted-foreground">
+                  No images added yet.
                 </p>
               )}
+
+              <p className="text-sm text-muted-foreground">
+                Upload one or more images. You can reorder them by choosing a
+                new representative image.
+              </p>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               <Link
                 href={ROUTES.OWNER_PROPERTIES}
                 className="flex-1 py-2.5 rounded-lg border border-border bg-background text-foreground font-semibold hover:bg-muted transition-colors text-center"
@@ -294,7 +558,7 @@ export default function EditPropertyPage({
                 disabled={isSubmitting}
                 className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSubmitting ? "Updating..." : "Update Property"}
+                {isSubmitting ? "Uploading & Updating..." : "Update Property"}
               </button>
             </div>
           </form>

@@ -56,8 +56,8 @@ const updateProperty = async (id, ownerId, data) => {
   if (property.ownerId.toString() !== ownerId.toString()) {
     throw createError("Not authorized", 403);
   }
-  if (property.status !== "draft") {
-    throw createError("Only draft properties can be edited", 400);
+  if (property.status === "disabled") {
+    throw createError("Disabled properties cannot be edited", 400);
   }
 
   return await Property.findByIdAndUpdate(id, data, {
